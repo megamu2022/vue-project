@@ -1,0 +1,687 @@
+var scrollFunc = function (e) {
+    e = e || window.event;
+    if (e.wheelDelta) {  //第一步：先判断浏览器IE，谷歌滑轮事件
+        if (e.wheelDelta > 0) { //当滑轮向上滚动时
+            $('.header').removeClass('fixedTop');
+            console.log("滑轮向上滚动");
+        }
+        if (e.wheelDelta < 0) { //当滑轮向下滚动时
+            $('.header').addClass('fixedTop');
+            console.log("滑轮向下滚动");
+        }
+    } else if (e.detail) {  //Firefox滑轮事件
+        if (e.detail> 0) { //当滑轮向上滚动时
+            $('.header').addClass('fixedTop')
+            console.log("滑轮向下滚动");
+        }
+        if (e.detail< 0) { //当滑轮向下滚动时
+            $('.header').removeClass('fixedTop');
+            console.log("滑轮向上滚动");
+        }
+    }
+};
+//给页面绑定滑轮滚动事件
+if (document.addEventListener) {//firefox
+    document.addEventListener('DOMMouseScroll', scrollFunc, false);
+}
+//滚动滑轮触发scrollFunc方法  //ie 谷歌
+window.onmousewheel = document.onmousewheel = scrollFunc;
+
+//    计数器
+$(function(){
+    $('.counter').delegate('span','click',function() {
+        if($(this).hasClass('add')){
+            var v=parseInt($(this).prev().val());
+            v+=1;
+            $(this).prev().val(v);
+        }
+        if($(this).hasClass('minus')){
+            var _v=parseInt($(this).next().val());
+            if(_v>1) {
+                _v -= 1;
+                $(this).next().val(_v);
+            }else if(_v==1){
+                $(this).next().val(1);
+            }
+        }
+    });
+    $('.vote-counter').delegate('span','click',function() {
+        if($(this).hasClass('vote-add')){
+            var v=parseInt($(this).prev().val());
+            v+=10;
+            $(this).prev().val(v);
+        }
+        if($(this).hasClass('vote-minus')){
+            var _v=parseInt($(this).next().val());
+            if(_v>10) {
+                _v -= 10;
+                $(this).next().val(_v);
+            }else if(_v==10){
+                $(this).next().val(10);
+            }
+        }
+    })
+
+
+
+});
+
+$('input,textarea').blur(function () {
+    var scroll_top = $(document).scrollTop();
+    setTimeout(function(){
+        $(window).scrollTop(scroll_top);
+    }, 300);
+});
+
+(function () {
+    var u = navigator.userAgent;
+    var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/); //ios终端
+    if (isIOS) {
+        $('body').addClass('iPhoneX');
+    }
+
+    var loc = location.href;
+    var inapp = $.cookie('inapp');
+    // alert(inapp);
+    if(inapp == '1' ||  loc.indexOf('inapp') > -1){
+        $.cookie('inapp', '1', { expires: 7, path: '/' });
+        $('.hamburger').addClass('hide');
+        $('.hamburger').hide();
+    }
+
+})();
+
+
++ function($) {
+
+    var defaults;
+
+    var Photos = function(config) {
+        this.initConfig(config);
+        this.index = 0;
+    }
+
+    Photos.prototype = {
+        initConfig: function (config) {
+            this.config = $.extend({}, defaults, config);
+            this.activeIndex = this.lastActiveIndex = this.config.initIndex;
+
+            this.config.items = this.config.items.map(function(d, i) {
+                if(typeof d === typeof 'a') {
+                    return {
+                        image: d,
+                        caption: ''
+                    }
+                }
+                return d;
+            });
+
+            this.tpl = $.t7.compile(this.config.tpl);
+            if(this.config.autoOpen) this.open();
+        },
+
+        open: function (index) {
+            if (this._open) return false;
+            if (!this.modal) {
+                this.modal = $(this.tpl(this.config)).appendTo(document.body);
+                this.container = this.modal.find('.swiper-container');
+                this.wrapper = this.modal.find('.swiper-wrapper');
+
+                var hammer = new Hammer(this.container[0]);
+                hammer.get('pinch').set({ enable: true });
+                hammer.on('pinchstart', $.proxy(this.onGestureStart, this));
+                hammer.on('pinchmove', $.proxy(this.onGestureChange, this));
+                hammer.on('pinchend', $.proxy(this.onGestureEnd, this));
+                this.modal.on($.touchEvents.start, $.proxy(this.onTouchStart, this));
+                this.modal.on($.touchEvents.move, $.proxy(this.onTouchMove, this));
+                this.modal.on($.touchEvents.end, $.proxy(this.onTouchEnd, this));
+
+                //init index
+                this.wrapper.transition(0);
+                this.wrapper.transform('translate3d(-' + $(window).width()*this.config.initIndex + 'px,0,0)');
+                this.container.find('.caption-item').eq(this.config.initIndex).addClass('active');
+                this.container.find('.swiper-pagination-bullet').eq(this.config.initIndex).addClass('swiper-pagination-bullet-active');
+            }
+
+            var self = this;
+            this.modal.show().height();
+            this.modal.addClass('weui-photo-browser-modal-visible');
+            this.container.addClass('swiper-container-visible').transitionEnd(function() {
+                self.initParams();
+                if(self.config.onOpen) {
+                    self.config.onOpen.call(self);
+                }
+            });
+
+            this._open = true;
+            if(index !== undefined) {
+                this.slideTo(index, 0);
+            }
+        },
+
+        close: function() {
+            this.container.transitionEnd($.proxy(function() {
+                this.modal.hide();
+                this._open = false;
+                if(this.config.onClose) this.config.onClose.call(this);
+            }, this));
+            this.container.removeClass('swiper-container-visible');
+            this.modal.removeClass('weui-photo-browser-modal-visible');
+        },
+
+        initParams: function () {
+            if(this.containerHeight) return false;
+
+            this.windowWidth = $(window).width();
+            this.containerHeight = this.container.height();
+            this.containerWidth = this.container.width();
+
+            this.touchStart = {};
+
+            this.wrapperTransform = 0;
+            this.wrapperLastTransform = - $(window).width()*this.config.initIndex;
+            this.wrapperDiff = 0;
+
+            this.lastScale = 1;
+            this.currentScale = 1;
+
+            this.imageLastTransform = { x: 0, y: 0 };
+            this.imageTransform = { x: 0, y: 0 };
+            this.imageDiff = { x: 0, y: 0 };
+            this.imageLastDiff = { x: 0, y: 0 };
+        },
+
+        onTouchStart: function (e) {
+            if(this.scaling) return false;
+            this.touching = true;
+            this.touchStart = $.getTouchPosition(e);
+            this.touchMove = null;
+            this.touchStartTime = + new Date;
+            this.wrapperDiff = 0;
+            this.breakpointPosition = null;
+        },
+
+        onTouchMove: function (e) {
+            if(!this.touching || this.scaling) return false;
+
+            e.preventDefault();
+
+            if(this.gestureImage) {
+                var rect = this.gestureImage[0].getBoundingClientRect();
+                if (rect.left >= 0 || rect.right <= this.windowWidth) {
+                    this.overflow = true;
+                } else {
+                    this.overflow = false;
+                }
+            } else {
+                this.oveflow = false;
+            }
+            var p = this.touchMove = $.getTouchPosition(e);
+            if(this.currentScale === 1 || this.overflow) {
+                if(this.breakpointPosition) {
+                    this.wrapperDiff = p.x - this.breakpointPosition.x;
+                } else {
+                    this.wrapperDiff = p.x - this.touchStart.x;
+                }
+                if(this.activeIndex === 0 && this.wrapperDiff > 0) this.wrapperDiff = Math.pow(this.wrapperDiff, .8);
+                if(this.activeIndex === this.config.items.length - 1 && this.wrapperDiff < 0) this.wrapperDiff = - Math.pow(-this.wrapperDiff, .8);
+                this.wrapperTransform = this.wrapperLastTransform + this.wrapperDiff;
+                this.doWrapperTransform();
+            } else {
+                var img = this.gestureImage;
+                this.imageDiff = {
+                    x: p.x - this.touchStart.x,
+                    y: p.y - this.touchStart.y
+                }
+
+                this.imageTransform = {
+                    x: this.imageDiff.x + this.imageLastTransform.x,
+                    y: this.imageDiff.y + this.imageLastTransform.y
+                };
+                this.doImageTransform();
+
+                this.breakpointPosition = p;
+
+                this.imageLastDiff = this.imageDiff;
+            }
+        },
+
+        onTouchEnd: function (e) {
+            if(!this.touching) return false;
+            this.touching = false;
+            if(this.scaling) return false;
+            var duration = (+ new Date) - this.touchStartTime;
+
+            if(duration < 200 && (!this.touchMove || Math.abs(this.touchStart.x - this.touchMove.x) <= 2 && Math.abs(this.touchStart.y - this.touchMove.y) <= 2)) {
+                this.onClick();
+                return;
+            }
+            if(this.wrapperDiff > 0) {
+                if(this.wrapperDiff > this.containerWidth/2 || (this.wrapperDiff > 20 && duration < 300)) {
+                    this.slidePrev();
+                } else {
+                    this.slideTo(this.activeIndex, 200);
+                }
+            } else {
+                if(- this.wrapperDiff > this.containerWidth/2 || (-this.wrapperDiff > 20 && duration < 300)) {
+                    this.slideNext();
+                } else {
+                    this.slideTo(this.activeIndex, 200);
+                }
+            }
+
+            this.imageLastTransform = this.imageTransform;
+
+            this.adjust();
+        },
+
+        onClick: function () {
+            var self = this;
+            if (this._lastClickTime && ( + new Date - this._lastClickTime < 300)) {
+                this.onDoubleClick();
+                clearTimeout(this._clickTimeout);
+            } else {
+                this._clickTimeout = setTimeout(function () {
+                    self.close();
+                }, 300);
+            }
+            this._lastClickTime = + new Date;
+        },
+
+        onDoubleClick: function () {
+            this.gestureImage = this.container.find('.swiper-slide').eq(this.activeIndex).find('img');
+            this.currentScale = this.currentScale > 1 ? 1 : 2;
+            this.doImageTransform(200);
+            this.adjust();
+        },
+
+        onGestureStart: function (e) {
+            this.scaling = true;
+            this.gestureImage = this.container.find('.swiper-slide').eq(this.activeIndex).find('img');
+        },
+
+        onGestureChange: function (e) {
+            var s = this.lastScale * e.scale;
+            if (s > this.config.maxScale) {
+                s = this.config.maxScale + Math.pow((s - this.config.maxScale), 0.5);
+            } else if (s < 1) {
+                s = Math.pow(s, .5);
+            }
+            this.currentScale = s;
+            this.doImageTransform();
+        },
+
+        onGestureEnd: function (e) {
+            if (this.currentScale > this.config.maxScale) {
+                this.currentScale = this.config.maxScale;
+                this.doImageTransform(200);
+            } else if (this.currentScale < 1) {
+                this.currentScale = 1;
+                this.doImageTransform(200);
+            }
+            this.lastScale = this.currentScale;
+            this.scaling = false;
+            this.adjust();
+        },
+
+        doWrapperTransform: function(duration, callback) {
+            if (duration === 0) {
+                var origin = this.wrapper.css('transition-property')
+                this.wrapper.css('transition-property', 'none').transform('translate3d(' + this.wrapperTransform + 'px, 0, 0)');
+                this.wrapper.css('transition-property', origin);
+                callback()
+            } else {
+                this.wrapper.transitionEnd(function() {
+                    callback && callback();
+                });
+                this.wrapper.transition(duration || 0).transform('translate3d(' + this.wrapperTransform + 'px, 0, 0)');
+            }
+        },
+
+        doImageTransform: function(duration, callback) {
+            if(!this.gestureImage) return;
+            this.gestureImage.transition(duration || 0).transform('translate3d(' + this.imageTransform.x + 'px,' + this.imageTransform.y + 'px, 0) scale(' + this.currentScale + ')');
+            this._needAdjust = true;
+        },
+
+        adjust: function() {
+            if(!this._needAdjust) return false;
+            var img = this.gestureImage;
+            if(!img) return false;
+            if(this.currentScale === 1) {
+                this.imageTransform = this.imageLastDiff =  {x:0,y:0};
+                this.doImageTransform(200);
+                return;
+            }
+
+            var rect = img[0].getBoundingClientRect();
+
+            //调整上下
+            if(rect.height < this.containerHeight) {  // 如果高度没容器高，则自动居中
+                this.imageTransform.y = this.imageLastTransform.y = 0;
+            } else {  //如果比容器高，那么要保证上下不能有空隙
+                if(rect.top > 0) this.imageTransform.y = this.imageTransform.y - rect.top;
+                else if(rect.bottom < this.containerHeight) this.imageTransform.y = this.imageTransform.y + this.containerHeight - rect.bottom;
+            }
+
+            this.doImageTransform(200);
+            this._needAdjust = false; // must at last line, because doImageTransform will set this._needAdjust true
+        },
+
+        slideTo: function(index, duration) {
+            if(index < 0) index = 0;
+            if(index > this.config.items.length-1) index = this.config.items.length - 1;
+            this.lastActiveIndex = this.activeIndex;
+            this.activeIndex = index;
+            this.wrapperTransform = - (index * this.containerWidth);
+            this.wrapperLastTransform = this.wrapperTransform;
+            this.doWrapperTransform(duration, $.proxy(function() {
+                if(this.lastActiveIndex === this.activeIndex) return false; // active index not change
+                this.container.find('.caption-item.active').removeClass('active');
+                this.container.find('.swiper-slide-active').removeClass('swiper-slide-active');
+                this.container.find('.swiper-pagination-bullet-active').removeClass('swiper-pagination-bullet-active');
+                this.container.find('.caption-item').eq(this.activeIndex).addClass('active');
+                this.container.find('.swiper-slide').eq(this.activeIndex).addClass('swiper-slide-active');
+                this.container.find('.swiper-pagination-bullet').eq(this.activeIndex).addClass('swiper-pagination-bullet-active');
+
+                //reset image transform
+                this.container.find('.swiper-slide img[style]').transition(0).transform('translate3d(0,0,0) scale(1)');
+
+                this.lastScale = 1;
+                this.currentScale = 1;
+
+                this.imageLastTransform = { x: 0, y: 0 };
+                this.imageTransform = { x: 0, y: 0 };
+                this.imageDiff = { x: 0, y: 0 };
+                this.imageLastDiff = { x: 0, y: 0 };
+
+                if(this.config.onSlideChange) {
+                    this.config.onSlideChange.call(this, this.activeIndex);
+                }
+
+            }, this));
+        },
+        slideNext: function() {
+            return this.slideTo(this.activeIndex+1, 200);
+        },
+        slidePrev: function() {
+            return this.slideTo(this.activeIndex-1, 200);
+        }
+    }
+
+    defaults = Photos.prototype.defaults = {
+        items: [],
+        autoOpen: false, //初始化完成之后立刻打开
+        onOpen: undefined,
+        onClose: undefined,
+        initIndex: 0, //打开时默认显示第几张
+        maxScale: 3,
+        onSlideChange: undefined,
+        tpl: '<div class="weui-photo-browser-modal">\
+            <div class="swiper-container">\
+              <div class="swiper-wrapper">\
+                {{#items}}\
+                <div class="swiper-slide">\
+                  <div class="photo-container">\
+                    <img src="{{image}}" />\
+                  </div>\
+                </div>\
+                {{/items}}\
+              </div>\
+              <div class="caption">\
+                {{#items}}\
+                <div class="caption-item caption-item-{{@index}}">{{caption}}</div>\
+                {{/items}}\
+              </div>\
+              <div class="swiper-pagination swiper-pagination-bullets">\
+                {{#items}}\
+                <span class="swiper-pagination-bullet"></span>\
+                {{/items}}\
+              </div>\
+            </div>\
+          </div>'
+    }
+
+    $.photoBrowser = function(params) {
+        return new Photos(params);
+    }
+}($);
+
+/**
+ * 日历控件
+ * v1.0
+ */
+(function ($) {
+    var Calendar = function (elem, options) {
+        this.$calendar = elem;
+        var _date = new Date();
+        this.defaults = {
+            ifSwitch: true,
+            hoverDate: false,
+            backToday: false,
+            year:_date.getFullYear(),
+            month:_date.getMonth(),
+            day:_date.getDate(),
+            click:function () {
+
+            }
+        };
+
+        this.opts = $.extend({}, this.defaults, options);
+        dateObj.setDate(new Date(this.opts.year,this.opts.month,this.opts.day));
+    };
+
+    Calendar.prototype = {
+        showHoverInfo: function (obj) { // hover 时显示当天信息
+
+        },
+
+        showCalendar: function () { // 输入数据并显示
+            var self = this;
+            var year = dateObj.getDate().getFullYear();
+            var month = dateObj.getDate().getMonth() + 1;
+            var dateStr = returnDateStr(dateObj.getDate());
+            var firstDay = new Date(year, month - 1, 1); // 当前月的第一天
+
+            this.$calendarTitle_text.text(year + '年' + dateStr.substr(4, 2)+"月");
+
+            this.$calendarDate_item.each(function (i) {
+                // allDay: 得到当前列表显示的所有天数
+                var allDay = new Date(year, month - 1, i + 1 - firstDay.getDay());
+                var allDay_str = returnDateStr(allDay);
+
+                $(this).html('<span>'+allDay.getDate()+'</span>').attr('data', allDay_str);
+                if (returnDateStr(new Date(self.opts.year,self.opts.month,self.opts.day)) === allDay_str) {
+                    // $(this).attr('class', 'item');
+                    $(this).find("span").addClass('active');
+                } else if (returnDateStr(firstDay).substr(0, 6) === allDay_str.substr(0, 6)) {
+                    // if($(this).hasClass("calendar_weekend")){
+                    //     $(this).addClass('item bg');//周末
+                    // }else {
+                    //     $(this).attr('class', 'item '); //普通日期
+                    // }
+                } else {
+                    $(this).addClass('not-month');//非本月日期
+                    console.log(allDay_str)
+                }
+            });
+
+            // 已选择的情况下，切换日期也不会改变
+            if (self.selected_data) {
+                var selected_elem = self.$calendar_body.find('[data='+self.selected_data+']');
+
+                selected_elem.addClass('item-selected');
+            }
+        },
+
+        renderDOM: function () { // 渲染DOM
+            this.$calendar.children().remove();
+            this.$calendar_title = $('<div class="m-card-head"></div>');
+            this.$calendar_body = $('<div class="m-card-body"><div class="pt20 pb20"><table class="aui-table-calendar"><tbody></tbody></table></div></div>')
+            this.$calendar_week = $('<tr></tr>');
+
+
+            var _titleStr = '<div class="m-card-head-title clearfix"><a href="#" class="fl width15 tc">'+
+                '<img src="images/59.png" class="imgArrow arrow-prev" alt=""></a>'+
+                '<h3 class="fl width70 title-font tc fwn">2017 四月</h3><a href="#" class="fr width15 tc">'+
+                '<img src="images/60.png" class="imgArrow arrow-next" alt=""></a></div>';
+            var _weekStr = '<th width="14%" class="calendar_weekend">日</th>'+
+                '<th width="14%" class="">一</th>'+
+                '<th width="14%" class="">二</th>'+
+                '<th width="14%" class="">三</th>'+
+                '<th width="14%" class="">四</th>'+
+                '<th width="14%" class="">五</th>'+
+                '<th width="14%" class="calendar_weekend">六</th>';
+            this.$calendar_week.html(_weekStr);
+            this.$calendar_body.find("tbody").append(this.$calendar_week);
+            for (var i = 0; i < 6; i++) {
+                var _dateStr = '';
+                _dateStr += '<tr><td class="item bg-no calendar_weekend"><span>26</span></td>'+
+                    '<td class="item bg-no"><span>26</span></td>'+
+                    '<td class="item bg-no"><span>26</span></td>'+
+                    '<td class="item bg-no"><span>26</span></td>'+
+                    '<td class="item bg-no"><span>26</span></td>'+
+                    '<td class="item bg-no"><span>26</span></td>'+
+                    '<td class="item bg-no calendar_weekend"><span>26</span></td></tr>';
+                this.$calendar_body.find("tbody").append($(_dateStr));
+            }
+            this.$calendar_title.html(_titleStr);
+
+            this.$calendar.append(this.$calendar_title,this.$calendar_body);
+            this.$calendar.show();
+        },
+
+        inital: function () { // 初始化
+            var self = this;
+
+            this.renderDOM();
+
+            this.$calendarTitle_text = this.$calendar_title.find('.title-font');
+            this.$backToday = $('#backToday');
+            this.$arrow_prev = this.$calendar_title.find('.arrow-prev');
+            this.$arrow_next = this.$calendar_title.find('.arrow-next');
+            this.$calendarDate_item = this.$calendar_body.find('.item');
+
+            this.selected_data = 0;
+
+            this.showCalendar();
+
+            if (this.opts.ifSwitch) {
+                this.$arrow_prev.bind('click', function () {
+                    var _date = dateObj.getDate();
+
+                    dateObj.setDate(new Date(_date.getFullYear(), _date.getMonth() - 1, 1));
+
+                    self.showCalendar();
+                });
+
+                this.$arrow_next.bind('click', function () {
+                    var _date = dateObj.getDate();
+
+                    dateObj.setDate(new Date(_date.getFullYear(), _date.getMonth() + 1, 1));
+
+                    self.showCalendar();
+                });
+            }
+
+            this.$calendarDate_item.hover(function () {
+                self.showHoverInfo($(this));
+            });
+
+            this.$calendarDate_item.click(function () {
+                var _dateStr = $(this).attr('data');
+                var _date = changingStr(addMark(_dateStr));
+                var $curClick = null;
+                self.selected_data = $(this).attr('data');
+
+                dateObj.setDate(new Date(_date.getFullYear(), _date.getMonth(), 1));
+                self.opts.year = _date.getFullYear();
+                self.opts.month = _date.getMonth();
+                self.opts.day = _date.getDate();
+
+                if ($(this).hasClass('bg-no')) {
+                    self.showCalendar();
+                }
+
+                $curClick = self.$calendar_body.find('[data='+_dateStr+']');
+                if (!$curClick.find("span").hasClass('active')) {
+                    self.$calendarDate_item.find("span").removeClass('active');
+
+                    $curClick.find("span").addClass('active');
+                }
+                if(typeof self.opts.click == "function"){
+                    self.opts.click(self.selected_data);
+                }
+            });
+        },
+        constructor: Calendar
+    };
+
+    $.fn.extend({
+        defaultOptions:{
+
+        },
+        calendar:function (options) {
+            var calendar = new Calendar(this, options);
+            calendar.inital();
+            this.defaultOptions = $.extend({},this.defaultOptions,options)
+            return this.each(function () {
+            });
+        },
+        setDate:function (year,month,day) {
+            this.defaultOptions.year = year;
+            this.defaultOptions.month = month-1;
+            this.defaultOptions.day = day;
+            var calendar = new Calendar(this,this.defaultOptions);
+            calendar.inital();
+            return this.each(function () {
+            });
+        }
+    })
+
+
+    // ========== 使用到的方法 ==========
+
+    var dateObj = (function () {
+        var _date = new Date();
+
+        return {
+            getDate: function () {
+                return _date;
+            },
+
+            setDate: function (date) {
+                _date = date;
+            }
+        }
+    })();
+
+    function returnDateStr(date) { // 日期转字符串
+        var year = date.getFullYear();
+        var month = date.getMonth() + 1;
+        var day = date.getDate();
+
+        month = month <= 9 ? ('0' + month) : ('' + month);
+        day = day <= 9 ? ('0' + day) : ('' + day);
+
+        return year + month + day;
+    };
+
+    function changingStr(fDate) { // 字符串转日期
+        var fullDate = fDate.split("-");
+
+        return new Date(fullDate[0], fullDate[1] - 1, fullDate[2]);
+    };
+
+    function addMark(dateStr) { // 给传进来的日期字符串加-
+        return dateStr.substr(0, 4) + '-' + dateStr.substr(4, 2) + '-' + dateStr.substring(6);
+    };
+
+    // 条件1：年份必须要能被4整除
+    // 条件2：年份不能是整百数
+    // 条件3：年份是400的倍数
+    function isLeapYear(year) { // 判断闰年
+        return (year % 4 == 0) && (year % 100 != 0 || year % 400 == 0);
+    }
+
+})(jQuery);

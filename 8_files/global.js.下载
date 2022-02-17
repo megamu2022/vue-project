@@ -1,0 +1,693 @@
+
+$(document).ready(function() {
+    //手机端菜单处理
+    $('.mobileMenu .menu li').click(function () {
+        $(this).toggleClass('active').siblings('li').removeClass('active')
+    });
+    $('.header .hamburger').click(function () {
+        $('.blackModel').fadeIn(300);
+        $('.mobileMenu').addClass('show');
+    });
+    $('.mobileMenu .close').click(function () {
+        $('.mobileMenu').removeClass('show');
+        $('.blackModel').fadeOut(300);
+    });
+
+    $('.layout_1 .left ul li dl dt').click(function () {
+        $(this).parents('li').toggleClass('active').siblings('li').removeClass('active')
+    });
+    $('.viewMore').click(function () {
+        $(this).siblings('.intro').toggleClass('auto');
+        $(this).find('span').toggleClass('rotate180')
+    });
+    $('.mobileMenu .menu ul li>a').click(function () {
+        $(this).parent().toggleClass('active');
+        $(this).find('i').toggleClass('rotate180');
+        $(this).siblings('ul').slideToggle()
+    });
+    $('.mobileMenu .close').click(function () {
+        $('.mobileMenu').removeClass('show');
+        $('.blackModel').fadeOut(300);
+    });
+
+    var scrollFunc = function (e) {
+        e = e || window.event;
+        if (e.wheelDelta) {  //第一步：先判断浏览器IE，谷歌滑轮事件
+            if (e.wheelDelta > 0) { //当滑轮向上滚动时
+                $('.header').removeClass('fixedTop');
+            }
+            if (e.wheelDelta < 0) { //当滑轮向下滚动时
+                $('.header').addClass('fixedTop');
+            }
+        } else if (e.detail) {  //Firefox滑轮事件
+            if (e.detail> 0) { //当滑轮向下滚动时
+                $('.header').addClass('fixedTop')
+            }
+            if (e.detail< 0) { //当滑轮向上滚动时
+                $('.header').removeClass('fixedTop');
+            }
+        }
+    };
+    //给页面绑定滑轮滚动事件
+    if (document.addEventListener) {//firefox
+        document.addEventListener('DOMMouseScroll', scrollFunc, false);
+    }
+    //滚动滑轮触发scrollFunc方法  //ie 谷歌
+    window.onmousewheel = document.onmousewheel = scrollFunc;
+
+
+    // 全局ajax  全局性错误处理
+    $(document).ajaxComplete(function(event, xhr, settings) {
+        if(xhr && xhr.responseJSON && xhr.responseJSON.code ){
+            var res = xhr.responseJSON;
+            layer.closeAll('loading');
+
+            switch(res.code){
+                case 101: // 尚未登录，跳转到登录界面
+                    layer.msg(res.msg);
+                    if(res.url){
+                        setTimeout(function(){
+                             window.location.href = res.url;
+                        },res.wait?(res.wait*1000):2000);
+                       
+                    }
+                    return false;
+                    break;
+            }
+        }
+    });
+	
+    // 自动表单
+    $('.autoForm').submit(function(e){
+        stopDefaultEvent(e);
+        var form = $(this);
+        var url = form.attr('ajaxUrl')?form.attr('ajaxUrl'):window.location.href;
+
+        var loadIndex;
+        form.ajaxSubmit({
+            url : url,
+            type:'post',
+            dataType: 'json',
+            success: function (res){
+                layer.closeAll();
+                globaAjaxCallback(res);
+
+            },
+            beforeSend:function(){
+                layer.load(2);
+            },
+        })
+
+    })
+
+    // 全选按钮
+    if($('.checkedAllBtn').length > 0){
+        $('.checkedAllBtn').each(function(k,v){
+            var checkallrelation = $(v).attr('checkallrelation');
+
+            $(v).click(function(){
+                if($(this).hasClass('checkedAllChecked')){
+                    $('.checkedAllCheckbox[checkallrelation="'+checkallrelation+'"]:checked').next().click();
+                    $(this).removeClass('checkedAllChecked active');
+                }else{
+                    $('.checkedAllCheckbox[checkallrelation="'+checkallrelation+'"]').not(':checked').next().click();
+                    $(this).addClass('checkedAllChecked active');
+                }
+            })
+
+            $('.checkedAllCheckbox[checkallrelation="'+checkallrelation+'"]').next().click(function(){
+                if($('.checkedAllCheckbox[checkallrelation="'+checkallrelation+'"]').length > $('.checkedAllCheckbox[checkallrelation="'+checkallrelation+'"]:checked').length){
+                    $('.checkedAllBtn[checkallrelation="'+checkallrelation+'"]').removeClass('checkedAllChecked active');
+                }else{
+                    $('.checkedAllBtn[checkallrelation="'+checkallrelation+'"]').addClass('checkedAllChecked active');
+                }
+            })
+
+
+        })
+    }
+
+    if($('.text p').length > 0){
+        $('.text p').each(function(k,v){
+            var img = $(v).find('img');
+            img.removeAttr('width').removeAttr('height');
+        })
+    }
+    
+
+})
+
+// 阻止默认事件
+function stopDefaultEvent(event){
+    if ( event && event.preventDefault ) {
+        event.preventDefault(); // 兼容标准浏览器
+    }else if(window.event){// 兼容IE6~8
+         window.event.returnValue = false; 
+    }
+
+    return false;
+   
+}
+
+// 全局ajax 回调事件
+function globaAjaxCallback(res){
+    if(res.status == 'success'){
+        if(res.msg){
+            if(res.url){
+                layer.msg(res.msg,{shade:0.01},function(){
+                    //layer.load(2);
+                });
+            }else{
+                layer.msg(res.msg);
+            }   
+        }
+        
+        if(res.url){   // 跳转到某个页面
+            if(res.msg){
+                setTimeout(function(){
+                     window.location.href = res.url;
+                },res.wait?(res.wait*1000):2000);
+            }else{
+                //layer.load(2);
+                window.location.href = res.url;
+            }
+            
+        }
+
+    }else{
+        if(res.msg){
+            layer.msg(res.msg);
+        }
+    }
+}
+
+function sendAjaxRequest(data,url,success,error,option){
+    var ajaxUrl = url?url:window.location.href;
+    if(typeof(error) != 'function'){
+        option = error;
+    }
+    option = option?option:{};
+
+    var noLoading = option.noLoading?true:false;
+
+    if(!$.isEmptyObject(data) ){
+        var loadIndex;
+        if(!noLoading){
+            loadIndex = layer.load(2);
+        }
+        
+        $.ajax({
+            url  : ajaxUrl,
+            type : 'POST',
+            dataType : 'JSON',
+            data : data,
+            success : function(res){
+                if(!noLoading){
+                    layer.close(loadIndex);
+                }
+                
+                globaAjaxCallback(res);
+                if(success && typeof(success) == 'function'){
+                    success(res);
+                }
+            }
+        })
+    }
+}
+
+// 音乐播放器
+/* 调用示例 
+var player = new audioPlayer([
+    {
+        controller : '#singleMusicList .operation', // 控制器。 如果是single 标签上 需要都有 对应的 data-source 和 data-title
+        type : 'single'
+    },
+    {
+        controller : '#multipleMusicList',
+        type : 'multiple'
+    }
+]);
+*/
+var audioPlayer = (function(window) {
+    var audioPlayer = function(config) {
+        return new audioPlayer.fn.init(config);
+    }
+
+    audioPlayer.fn = audioPlayer.prototype = {
+        constructor: audioPlayer,
+        config : {},    // 配置
+        player : {},    // 播放器
+        audioPlayerHiddenDiv: {},  // 隐藏的div
+        audioPlayermMultiplePlayingList: {},  // 播放列表
+        init: function(config) {
+            var _this = this;
+
+            // 预创建  隐藏元素
+            if($('#audioPlayerHiddenDiv').length <= 0){
+                $('body').append('<div id="audioPlayerHiddenDiv" style="display: none;"></div>');
+            }
+            this.audioPlayerHiddenDiv = $('#audioPlayerHiddenDiv');
+            if(this.audioPlayerHiddenDiv.find('#audioPlayermMultiplePlayingList').length <= 0){
+                this.audioPlayerHiddenDiv.append('<div id="audioPlayermMultiplePlayingList"></div>');
+            }
+            this.audioPlayermMultiplePlayingList = this.audioPlayerHiddenDiv.find('#audioPlayermMultiplePlayingList');
+
+            audiojs.events.ready(function() {
+                _this.config = config;
+                for(var c in config){
+                    var conf = config[c];
+                    var controller = $(conf['controller']);
+                    var index = (_this.player.length?_this.player.length:0)+1;
+
+                    var type = conf['type'];
+                    var audioElement = _this.crdateAudio(index); 
+                    var player = {
+                        type : type,
+                        controller : controller,
+                        player : _this.createPlayer(audioElement,controller,type)
+                    };
+
+                    _this.bindingControls(controller,type,player);
+
+                    _this.player[index] = player;
+                    _this.player.length = index;
+                }
+            })
+            
+        },
+        crdateAudio:function(index){   // 创建audio 元素
+            var audioElement = $('<audio id="audioPlayerElement'+index+'"></audio>');
+            this.audioPlayerHiddenDiv.append(audioElement);
+
+            return audioElement;
+        },
+        createPlayer:function(element,controller,type) {  // 创建播放器
+            _this = this;
+            return audiojs.create(element,{trackEnded:function(){   // 播放完毕事件
+                if(type == 'single'){
+                    controller.find('.pause').removeClass('pause').addClass('play');
+
+                }else if(type == 'multiple'){
+                    var list   = _this.audioPlayermMultiplePlayingList;
+                    var current = list.find('.playing');
+                    if(current.length <= 0){
+                        return false;
+                    }
+
+                    var next = current.next();
+                    if(next.length <=0 ){
+                        controller.find('.pause').removeClass('pause').addClass('play');
+                        return false;
+                    }
+
+                    var source = next.data('source');
+                    if(!source){
+                        layer.msg('播放列表里没有歌曲');
+                        return false;
+                    }
+
+                    _this.play(source,{type:type,controller:controller,player:this});
+                    next.addClass('playing').siblings().removeClass('playing');
+                    controller.find('.play').removeClass('play').addClass('pause');
+                }
+            }})[0];
+        },
+        bindingControls:function(controller,type,player){   // 绑定操作
+            var _this = this;
+
+            if(type == 'single'){
+                controller.on('click',function(e){
+                    var source = $(this).data('source');
+                    var title = $(this).data('title');
+                    var target = $(e.target);
+                    if(!source){
+                        return false;
+                    }
+
+                    if(target.hasClass('play')){   // 播放
+                        _this.play(source,player);
+                        target.removeClass('play').addClass('pause');
+
+                    }else if(target.hasClass('pause')){ // 暂停
+                        _this.pause(player);
+                        target.removeClass('pause').addClass('play');
+
+                    }else if(target.hasClass('add')){  // 添加到播放列表
+                        if(target.hasClass('active')){
+                            layer.msg('已经从播放列表移除');
+                            _this.removeList(source);
+                            target.removeClass('active');
+                        }else{
+                            layer.msg('已经添加到播放列表');
+                            _this.addList({source:source,title:title});
+                            target.addClass('active');
+                        }
+                    }
+                })
+            }else if(type == 'multiple'){
+                controller.on('click',function(e){
+                    var target = $(e.target);
+                    var list   = _this.audioPlayermMultiplePlayingList;
+                    var current = list.find('.playing');
+
+                    if(current.length <= 0){
+                        current = list.children(':eq(0)');
+                    }
+
+                    if(target.hasClass('play')){   // 播放
+                        var source = current.data('source');
+                        if(!source){
+                            layer.msg('播放列表里没有歌曲');
+                            return false;
+                        }
+
+                        _this.play(source,player);
+                        current.addClass('playing').siblings().removeClass('playing');
+                        target.removeClass('play').addClass('pause');
+
+                    }else if(target.hasClass('pause')){ // 暂停
+                        _this.pause(player);
+                        target.removeClass('pause').addClass('play');
+                        return false;
+
+                    }else if(target.hasClass('previous')){  // 上一曲  
+                        var prev = current.prev();
+                        if(prev.length <=0 ){
+                            layer.msg('没有上一曲了');
+                            return false;
+                        }
+
+                        var source = prev.data('source');
+                        if(!source){
+                            layer.msg('播放列表里没有歌曲');
+                            return false;
+                        }
+
+                        _this.play(source,player);
+                        prev.addClass('playing').siblings().removeClass('playing');
+                        player.controller.find('.play').removeClass('play').addClass('pause');
+
+
+                    }else if(target.hasClass('next')){  // 下一曲
+                        var next = current.next();
+                        if(next.length <=0 ){
+                            layer.msg('没有下一曲了');
+                            return false;
+                        }
+
+                        var source = next.data('source');
+                        if(!source){
+                            layer.msg('播放列表里没有歌曲');
+                            return false;
+                        }
+
+                        _this.play(source,player);
+                        next.addClass('playing').siblings().removeClass('playing');
+                        player.controller.find('.play').removeClass('play').addClass('pause');
+                    }
+
+                })
+            }
+        },
+        play : function(source, player){
+            if(!source){
+                return false;
+            }
+            if(!player){
+                return false;
+            }
+
+            player = player.player;
+            this.pause();    // 暂停全部
+            if(player.mp3 != source){
+                player.load(source);
+            }
+            player.play();
+
+            return true;
+        },
+        pause : function(player){
+            if(!player){
+                player = this.player;
+                for(var p in player){
+                    if(player[p].player){
+                        player[p].player.pause();
+                        player[p].controller.find('.pause').removeClass('pause').addClass('play');
+                    }
+                }
+            }else{
+                player.player.pause();
+            }
+            
+            return true;
+        },
+        addList : function(audio){
+            if(!$.isArray(audio)){
+                audio = [audio];
+            }
+            
+            var playingList = this.audioPlayermMultiplePlayingList;
+            var item = ''
+            for(var a in audio){
+                item = $('<li>'+audio[a]['title']+'</li>');
+                item.data('source',audio[a]['source']);
+                playingList.append(item);
+            }
+        },
+        removeList : function(source){
+            if(!$.isArray(source)){
+                source = [source];
+            }
+
+            var playingList = this.audioPlayermMultiplePlayingList;
+            playingList.children().each(function(k,v){
+                var ss = $(v).data('source');
+                for(var s in source){
+                    if(ss == source[s]){
+                        $(v).remove();
+                    }
+                }
+            })
+        },
+        cleanList : function(){
+            this.audioPlayermMultiplePlayingList.children().remove();
+        },
+        startList : function(){
+            var list   = _this.audioPlayermMultiplePlayingList;
+            var current = list.find('.playing');
+
+            if(current.length <= 0){
+                current = list.children(':eq(0)');
+            }
+            var source = current.data('source');
+            if(!source){
+                layer.msg('播放列表里没有歌曲');
+                return false;
+            }
+
+            var player;
+            for(var p in this.player){
+                if(this.player[p].type == 'multiple'){
+                    player = this.player[p];
+                }
+            }
+
+            if(!player){
+                return false;
+            }
+
+            this.pause();    // 暂停全部
+            player.player.load(source);
+            player.player.play();
+            player.controller.find('.play').removeClass('play').addClass('pause');
+            current.addClass('playing').siblings().removeClass('playing');
+        }
+
+    }
+
+    audioPlayer.fn.init.prototype = audioPlayer.fn;
+
+    return audioPlayer;
+})();
+
+//跳转分页
+function jumpPage(_this){
+    var jumpData = $(_this).siblings('input');
+    var page = jumpData.val();
+    page = Number(page);
+    var max = jumpData.data('max');
+    if (page>max) {
+        var p = max;
+    }else{
+        var p = page?page:1;
+    }
+    var baseUrl = jumpData.data('url');
+    var fieldName = fieldName?fieldName:'page';
+    var search = window.location.search;
+    //是否带有参数
+    if (search) {
+        url = search + '&';
+    } else {
+        url = '?';
+    }
+    if(url.indexOf(fieldName+'=') >=0){
+        url = url.substr(0, url.indexOf(fieldName+'='));
+    }
+    url += fieldName+'='+p;
+    window.location.href = url;
+    return false;
+}
+
+$.extend({
+  StandardPost:function(url,args){
+      var body = $(document.body),
+          form = $("<form method='post'></form>"),
+          input;
+      form.attr({"action":url});
+      $.each(args,function(key,value){
+          input = $("<input type='hidden'>");
+          input.attr({"name":key});
+          input.val(value);
+          form.append(input);
+      });
+
+      form.appendTo(document.body);
+      form.submit();
+      document.body.removeChild(form[0]);
+  }
+});
+
+// $('.page-nav .starPageNav').click(function(){
+//     var postUrl = $('.page-nav').data('url');
+//     var url = $(this).data('url');
+//     var uid = $(this).data('uid');
+//     sendAjaxRequest({method:'pageJump',uid:uid,url:url},postUrl,function(res){
+//       if (res.status=="success") {
+//         $.StandardPost(url,res.data);
+//       }
+//     });
+// })
+
+function strNumSize(tempNum) {
+        var stringNum = tempNum.toString();
+        var index = stringNum.indexOf(".");
+        var newNum = stringNum;
+        if(index != -1) {
+            newNum = stringNum.substring(0, index)
+        };
+        return newNum.length;
+    }
+
+function unitConvert(num) {
+    var moneyUnits = ["", "万", "亿", "万亿"];
+    var dividend = 10000;
+    var curentNum = num;
+    //转换数字
+    var curentUnit = moneyUnits[0];
+    //转换单位 
+    for(var i = 0; i < 4; i++) {
+        curentUnit = moneyUnits[i];
+        if(strNumSize(curentNum) < 5) {
+            break;
+        };
+        curentNum = curentNum / dividend;
+    };
+
+    // var m = {
+    //     num: 0,
+    //     unit: ""
+    // };
+    m = 0;
+
+
+    curentNumStr = curentNum.toString();
+
+    if (num < 10000) {
+        return num;
+    }else{
+        qnum = Number(curentNumStr.replace(/^(.*\..{1}).*$/,"$1"));
+    }
+    
+    m = qnum + curentUnit;
+    return m;
+}
+// function onBridgeReady() {
+//     WeixinJSBridge.call('hideOptionMenu');
+// }
+ 
+// if (typeof WeixinJSBridge == "undefined") {
+//     if (document.addEventListener) {
+//         document.addEventListener('WeixinJSBridgeReady', onBridgeReady, false);
+//     } else if (document.attachEvent) {
+//         document.attachEvent('WeixinJSBridgeReady', onBridgeReady);
+//         document.attachEvent('onWeixinJSBridgeReady', onBridgeReady);
+//     }
+// } else {
+//     onBridgeReady();
+// }
+
+$('.page-inside-hamburger .hamburger').click(function (e) {
+    e.stopPropagation();//阻止冒泡
+    $(this).toggleClass('active');
+    $(this).siblings('.page-inside-menu').slideToggle()
+})
+$(document).click(function(){
+    if($('.page-inside-hamburger .hamburger').hasClass("active")){
+        $('.page-inside-hamburger .hamburger').removeClass('active');
+        $('.page-inside-hamburger .page-inside-menu').slideToggle();
+    }
+});
+
+//身份证验证
+function IDcardCheck(card){ 
+    //身份证号码为15位或者18位，15位时全为数字，18位前17位为数字，最后一位是校验位，可能为数字或字符X 
+    var reg = /(^\d{15}$)|(^\d{17}(\d|X|x)$)/; 
+    if(reg.test(card) === false){ 
+        return false; 
+    }
+
+    var len = card.length;
+    //身份证18位时，次序为省（3位）市（3位）年（4位）月（2位）日（2位）校验位（4位），校验位末尾可能为X 
+    if(len == '18'){ 
+       var re_eighteen = /^(\d{6})(\d{4})(\d{2})(\d{2})(\d{3})([0-9]|X|x)$/; 
+       var arr_data = card.match(re_eighteen);
+       var year = arr_data[2]; 
+       var month = arr_data[3]; 
+       var day = arr_data[4]; 
+       var birthday = new Date(year+'/'+month+'/'+day); 
+
+    }else if(len == '15'){  
+       var re_fifteen = /^(\d{6})(\d{2})(\d{2})(\d{2})(\d{3})$/; 
+       var arr_data = card.match(re_fifteen);
+       var year = '19'+arr_data[2]; 
+       var month = arr_data[3]; 
+       var day = arr_data[4]; 
+       var birthday = new Date(year+'/'+month+'/'+day);
+
+    }else{
+        return false;
+    }
+
+    //省份验证
+    var province = {11:"北京",12:"天津",13:"河北",14:"山西",15:"内蒙古", 21:"辽宁",22:"吉林",23:"黑龙江",31:"上海",32:"江苏",33:"浙江",34:"安徽",35:"福建",36:"江西",37:"山东",41:"河南",42:"湖北",43:"湖南",44:"广东",45:"广西",46:"海南",50:"重庆",51:"四川",52:"贵州",53:"云南",54:"西藏",61:"陕西",62:"甘肃",63:"青海",64:"宁夏",65:"新疆",71:"台湾",81:"香港",82:"澳门",91:"国外"}; 
+    var code = card.substr(0,2);
+    if(province[code] == undefined){ 
+        return false; 
+    } 
+    var now = new Date(); 
+    var now_year = now.getFullYear(); 
+    //年月日是否合理 
+    if(birthday.getFullYear() == year && (birthday.getMonth() + 1) == month && birthday.getDate() == day) 
+    { 
+       //判断年份的范围（3岁到100岁之间) 
+       var time = now_year - year;
+       if(time < 3 || time > 100) 
+       { 
+         return false; 
+       } 
+    }else{
+        return false;
+    }
+
+    return true; 
+}
